@@ -25,3 +25,29 @@ from sklearn.metrics import (
 df = pd.read_csv("C:/Users/ankam/OneDrive/Pictures/Documents/Desktop/transport online sales.csv")
 print("First 5 rows:\n", df.head())
 print("\nDataset shape:", df.shape)
+
+# Load dataset
+df = pd.read_csv("C:/Users/ankam/OneDrive/Pictures/Documents/Desktop/transport online sales.csv")
+print("First 5 rows:\n", df.head())
+print("\nDataset shape:", df.shape)
+
+# Convert date columns
+date_cols = ["makeYear", "fromdate", "todate"]
+for col in date_cols:
+    df[col] = pd.to_datetime(df[col], format="%d/%m/%y %H:%M", errors="coerce")
+
+df["makeYear_num"] = df["makeYear"].dt.year
+df["reg_duration_days"] = (df["todate"] - df["fromdate"]).dt.days
+
+# Missing values
+print("\nMissing values:\n", df.isnull().sum())
+
+# Descriptive stats
+print("\nDescriptive Statistics:\n")
+print(df[["seatCapacity", "makeYear_num", "reg_duration_days"]].describe())
+
+# Feature lists
+categorical_features = [
+    "fuel", "vehicleClass", "makerName",
+    "OfficeCd", "secondVehicle", "colour", "modelDesc"
+]
