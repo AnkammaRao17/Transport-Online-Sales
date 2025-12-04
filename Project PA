@@ -26,11 +26,6 @@ df = pd.read_csv("C:/Users/ankam/OneDrive/Pictures/Documents/Desktop/transport o
 print("First 5 rows:\n", df.head())
 print("\nDataset shape:", df.shape)
 
-# Load dataset
-df = pd.read_csv("C:/Users/ankam/OneDrive/Pictures/Documents/Desktop/transport online sales.csv")
-print("First 5 rows:\n", df.head())
-print("\nDataset shape:", df.shape)
-
 # Convert date columns
 date_cols = ["makeYear", "fromdate", "todate"]
 for col in date_cols:
@@ -51,3 +46,166 @@ categorical_features = [
     "fuel", "vehicleClass", "makerName",
     "OfficeCd", "secondVehicle", "colour", "modelDesc"
 ]
+
+numeric_features_reg = ["makeYear_num", "reg_duration_days"]
+numeric_features_clf = ["makeYear_num", "reg_duration_days", "seatCapacity"]
+
+# Preprocessors
+num_reg = Pipeline(steps=[
+    ("imputer", SimpleImputer(strategy="median")),
+    ("scaler", StandardScaler())
+])
+
+num_clf = Pipeline(steps=[
+    ("imputer", SimpleImputer(strategy="median")),
+    ("scaler", StandardScaler())
+])
+
+cat = Pipeline(steps=[
+    ("imputer", SimpleImputer(strategy="most_frequent")),
+    ("onehot", OneHotEncoder(handle_unknown="ignore"))
+])
+
+preprocessor_reg = ColumnTransformer(
+    transformers=[
+        ("num", num_reg, numeric_features_reg),
+        ("cat", cat, categorical_features),
+    ]
+)
+
+preprocessor_clf = ColumnTransformer(
+    transformers=[
+        ("num", num_clf, numeric_features_clf),
+        ("cat", cat, categorical_features),
+    ]
+)
+
+# LINEAR REGRESSION
+df_reg = df.dropna(subset=["seatCapacity"])
+X_reg = df_reg[numeric_features_reg + categorical_features]
+y_reg = df_reg["seatCapacity"]
+
+X_train_reg, X_test_reg, y_train_reg, y_test_reg = train_test_split(
+    X_reg, y_reg, test_size=0.2, random_state=42
+)
+
+linreg = Pipeline(steps=[
+    ("preprocess", preprocessor_reg),
+    ("model", LinearRegression())
+])
+
+linreg.fit(X_train_reg, y_train_reg)
+y_pred_reg = linreg.predict(X_test_reg)
+
+linear_MAE = mean_absolute_error(y_test_reg, y_pred_reg)
+linear_MSE = mean_squared_error(y_test_reg, y_pred_reg)
+linear_RMSE = np.sqrt(linear_MSE)
+linear_R2 = r2_score(y_test_reg, y_pred_reg)
+
+print("\n--- Linear Regression Results ---")
+print("MAE :", linear_MAE)
+print("MSE :", linear_MSE)
+print("RMSE:", linear_RMSE)
+print("R²  :", linear_R2)
+
+# LOGISTIC REGRESSION
+df_clf = df.dropna(subset=["category"])
+X_clf = df_clf[numeric_features_clf + categorical_features]
+y_clf = df_clf["category"]
+
+X_train_clf, X_test_clf, y_train_clf, y_test_clf = train_test_split(
+    X_clf, y_clf, test_size=0.2, random_state=42, stratify=y_clf
+)
+
+logreg = Pipeline(steps=[
+    ("preprocess", preprocessor_clf),
+    ("model", LogisticRegression(max_iter=2000))
+])
+
+logreg.fit(X_train_clf, y_train_clf)
+y_pred_log = logreg.predict(X_test_clf)
+
+log_accuracy = accuracy_score(y_test_clf, y_pred_log)
+
+print("\n--- Logistic Regression Accuracy ---", log_accuracy)
+print("\nClassification Report:\n", classification_report(y_test_clf, y_pred_log))
+
+cm = confusion_matrix(y_test_clf, y_pred_log)
+disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+disp.plot(cmap="Blues")
+plt.title("Confusion Matrix – Logistic Regression")
+plt.show()
+
+# DECISION TREE
+dt = Pipeline(steps=[
+    ("preprocess", preprocessor_clf),
+    ("model", DecisionTreeClassifier(random_state=42))
+])
+
+dt.fit(X_train_clf, y_train_clf)
+y_pred_dt = dt.predict(X_test_clf)
+
+dt_accuracy = accuracy_score(y_test_clf, y_pred_dt)
+
+print("\n--- Decision Tree Accuracy ---", dt_accuracy)
+print("\nClassification Report:\n", classification_report(y_test_clf, y_pred_dt))
+
+cm2 = confusion_matrix(y_test_clf, y_pred_dt)
+disp2 = ConfusionMatrixDisplay(confusion_matrix=cm2)
+disp2.plot(cmap="Greens")
+plt.title("Confusion Matrix – Decision Tree")
+plt.show()
+
+# MODEL SUMMARY
+summary = pd.DataFrame({
+    "Model": ["Linear Regression", "Logistic Regression", "Decision Tree"],
+    "MAE": [linear_MAE, None, None],
+    "MSE": [linear_MSE, None, None],
+    "RMSE": [linear_RMSE, None, None],
+    "R2": [linear_R2, None, None],
+    "Accuracy": [None, log_accuracy, dt_accuracy]
+})
+
+print("\n===========================")
+print("  MODEL EVALUATION SUMMARY")
+print("===========================")
+print(summary.to_string(index=False))
+print("===========================")
+
+
+
+# Histogram
+plt.figure(figsize=(7, 5))
+plt.hist(df["seatCapacity"].dropna(), bins=20)
+plt.title("Histogram – Seat Capacity")
+plt.xlabel("Seat Capacity")
+plt.ylabel("Frequency")
+plt.show()
+
+# Bar Chart
+plt.figure(figsize=(7, 5))
+fuel_counts = df["fuel"].value_counts(dropna=False)
+plt.bar(fuel_counts.index.astype(str), fuel_counts.values)
+plt.title("Fuel Type Count")
+plt.xlabel("Fuel Type")
+plt.ylabel("Count")
+plt.xticks(rotation=45)
+plt.show()
+
+# Boxplot
+plt.figure(figsize=(7, 5))
+sns.boxplot(x=df["seatCapacity"].dropna())
+plt.title("Boxplot – Seat Capacity")
+plt.xlabel("Seat Capacity")
+plt.show()
+
+# Scatter Plot
+plt.figure(figsize=(7, 5))
+scatter_df = df[["makeYear_num", "seatCapacity"]].dropna()
+plt.scatter(scatter_df["makeYear_num"], scatter_df["seatCapacity"], s=8)
+plt.title("Scatter Plot – Make Year vs Seat Capacity")
+plt.xlabel("Make Year")
+plt.ylabel("Seat Capacity")
+plt.show()
+
+print("\nDone.")
